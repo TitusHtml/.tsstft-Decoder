@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Titus Decoder - Guard Byte Mode</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f4f9; }
+        #drop-zone { border: 3px dashed #777; padding: 50px; background: white; cursor: pointer; border-radius: 15px; }
+        #output { margin-top: 30px; font-size: 1.2em; }
+        .success { color: #1b5e20; background: #c8e6c9; padding: 20px; border-radius: 10px; border: 2px solid #2e7d32; }
+        .error { color: #b71c1c; background: #ffcdd2; padding: 20px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Titus' Secure .tsstft Decoder</h1>
+    <div id="drop-zone">Click to select or Drop your .tsstft file here</div>
+    <input type="file" id="file-input" style="display: none">
+    <div id="output"></div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const output = document.getElementById('output');
+
+        dropZone.onclick = () => fileInput.click();
+
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            // 1. Read the file as raw binary data
+            reader.readAsArrayBuffer(file);
+
+            reader.onload = (event) => {
+                const buffer = event.target.result;
+                const bytes = new Uint8Array(buffer);
+                
+                // 2. SKIP THE NULL BYTE: We start checking DNA at index 1 instead of 0
+                // Bytes are: [0]=00, [1]=T(84), [2]=S(83), [3]=S(83), [4]=T(84)
+                const signature = String.fromCharCode(bytes[1], bytes[2], bytes[3], bytes[4]);
+                
+                if (signature === "TSST" && bytes[0] === 0) {
+                    // 3. EXTRACT MESSAGE: Skip the null (1) + signature (4) = 5 total bytes
+                    const messageBytes = bytes.slice(5);
+                    const secretMessage = new TextDecoder().decode(messageBytes);
+                    
+                    output.innerHTML = `<div class="success"><strong>ACCESS GRANTED</strong><br><br>${secretMessage}</div>`;
+                } else {
+                    output.innerHTML = `<div class="error">ACCESS DENIED<br>Invalid File DNA or Missing Guard Byte</div>`;
+                }
+            };
+        };
+    </script>
+</body>
+</html>
